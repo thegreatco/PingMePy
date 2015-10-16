@@ -63,14 +63,14 @@ class PingMeClientTests(unittest.TestCase):
     def testGetHosts(self):
         groups = self.client.getGroups().get('results')
         for group in groups:
-            hosts = self.client.getHosts(group.get('id'))
+            hosts = self.client.get_hosts(group.get('id'))
             print json.dumps(hosts)
             self.assertIsNotNone(hosts)
 
     def testGetHost(self):
         groups = self.client.getGroups().get('results')
         for group in groups:
-            for host in self.client.getHosts(group.get('id')).get('results'):
+            for host in self.client.get_hosts(group.get('id')).get('results'):
                 host = self.client.getHost(group.get('id'), host.get('id'))
                 print json.dumps(host)
                 self.assertIsNotNone(host)
