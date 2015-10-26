@@ -2,6 +2,7 @@ import requests
 from requests.auth import HTTPDigestAuth
 from urlparse import urljoin
 import json
+import logging
 
 __author__ = 'TheGreatCO'
 
@@ -23,6 +24,126 @@ class PingMeClient:
         self.username = username
         self.apiKey = api_key
         self.url = urljoin(base_url, 'api/public/v1.0/')
+
+    def get_hosts(self, group_id):
+        """
+        Get the list of hosts in the specified group. [1]
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/hosts/#get-all-hosts-in-a-group
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
+                         getGroupByName to get the Id
+        :return: The list of hosts in the group.
+        """
+
+        self.__test_parameter_for_string(group_id, 'group_id')
+
+        url = urljoin(self.url, 'groups/{0}/hosts'.format(group_id))
+        result = self.__get(url)
+
+        return json.loads(result.text)
+
+    def get_host(self, group_id, host_id):
+        """
+        Get a host by host_id [1]
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/hosts/#get-a-host-by-id
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
+                         getGroupByName to get the Id
+        :param host_id: The Id of the host. If only host_name:port is known, use getHostByName
+        :return: The Host object
+        """
+
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(host_id, 'host_id')
+
+        url = urljoin(self.url, 'groups/{0}/hosts{1}'.format(group_id, host_id))
+        result = self.__get(url)
+
+        return json.loads(result.text)
+
+    def get_host_by_name(self, group_id, host_name):
+        """
+        Get a host by host_name:port [1]
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/hosts/#get-a-host-by-name-and-port
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
+                         getGroupByName to get the Id
+        :param host_name: The host_name:port combination of the host to retrieve
+        :return: The Host object
+        """
+
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(host_name, 'host_name')
+
+        url = urljoin(self.url, 'groups/{0}/hosts/byName/{1}'.format(group_id, host_name))
+        result = self.__get(url)
+
+        return json.loads(result.text)
+
+    def create_host(self, group_id, host):
+        """
+        Create a new host in the group. This is done using a host object. [1]
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/hosts/#create-a-host
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
+                         getGroupByName to get the Id
+        :param host: The host object that needs to be created. See Cloud Manager docs link above.
+        :return: The status of the call. Should be success or failure.
+        """
+
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_dictionary(host, 'host')
+
+        # I should probably have some validation of the dict here...
+
+        url = urljoin(self.url, 'groups/{0}'.format(group_id))
+        result = self.__post(url, host)
+
+        return json.loads(result.text)
+
+    def update_host(self, group_id, host):
+        """
+        :param group_id: The Id of the group, if not known, use the groupName and call getGroupByName to get the Id
+        :param host: The host object that needs to be updated. This needs to include the host_id.
+        :return: The status of the call. Should be success or failure.
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_dictionary(host, 'host')
+
+        # I should probably have some validation of the dict here...
+
+        url = urljoin(self.url, 'groups/{0}/hosts'.format(group_id))
+        result = self.__update(url, host)
+
+        return json.loads(result.text)
+
+    def delete_host(self, group_id, host_id):
+        """
+
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
+                         getGroupByName to get the Id
+        :param host_id:
+        :return:
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(host_id, 'host_id')
+
+        url = urljoin(self.url, 'groups/{0}/hosts/{1}'.format(group_id, host_id))
+        result = self.__delete(url)
+
+        return json.loads(result.text)
+
+    def get_last_ping(self, group_id, host_id):
+        """
+
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
+                         getGroupByName to get the Id
+        :param host_id:
+        :return:
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(host_id, 'host_id')
+
+        url = urljoin(self.url, 'groups/{0}/hosts/{1}/lastPing'.format(group_id, host_id))
+        result = self.__get(url)
+
+        return json.loads(result.text)
 
     def get_agents(self, group_id):
         """
@@ -83,6 +204,119 @@ class PingMeClient:
 
         return json.loads(result.text)
 
+    def get_metrics(self, group_id, host_id):
+        """
+
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
+                         getGroupByName to get the Id
+        :param host_id:
+        :return:
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(host_id, 'host_id')
+
+        url = urljoin(self.url, 'groups/{0}/hosts/{1}/metrics'.format(group_id, host_id))
+        result = self.__get(url)
+
+        return json.loads(result.text)
+
+    def get_metric(self, group_id, host_id, metric_id, granularity="1M", period="P2D"):
+        """
+
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
+                         getGroupByName to get the Id
+        :param host_id:
+        :param metric_id:
+        :param granularity:
+        :param period:
+        :return:
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(host_id, 'host_id')
+        self.__test_parameter_for_string(metric_id, 'metric_id')
+        url = urljoin(self.url, 'groups/{0}/hosts/{1}/metrics/{2}?granularity={3}&period={4}'.format(group_id, host_id,
+                                                                                                     metric_id,
+                                                                                                     granularity,
+                                                                                                     period))
+        result = self.__get(url)
+
+        return json.loads(result.text)
+
+    def get_device_metric(self, group_id, host_id, metric_id, device_name, granularity="1M", period="P2D"):
+        """
+
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
+                         getGroupByName to get the Id
+        :param host_id:
+        :param metric_id:
+        :param device_name:
+        :param granularity:
+        :param period:
+        :return:
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(host_id, 'host_id')
+        self.__test_parameter_for_string(metric_id, 'metric_id')
+        url = urljoin(self.url, 'groups/{0}/hosts/{1}/metrics/{2}/{3}?granularity={4}&period={5}'.format(group_id,
+                                                                                                         host_id,
+                                                                                                         metric_id,
+                                                                                                         device_name,
+                                                                                                         granularity,
+                                                                                                         period))
+        result = self.__get(url)
+
+        return json.loads(result.text)
+
+    def get_database_metric(self, group_id, host_id, metric_id, database_name, granularity="1M", period="P2D"):
+        """
+
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
+                         getGroupByName to get the Id
+        :param host_id:
+        :param metric_id:
+        :param database_name:
+        :param granularity:
+        :param period:
+        :return:
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(host_id, 'host_id')
+        self.__test_parameter_for_string(metric_id, 'metric_id')
+        url = urljoin(self.url, 'groups/{0}/hosts/{1}/metrics/{2}/{3}?granularity={4}&period={5}'.format(group_id,
+                                                                                                         host_id,
+                                                                                                         metric_id,
+                                                                                                         database_name,
+                                                                                                         granularity,
+                                                                                                         period))
+        result = self.__get(url)
+
+        return json.loads(result.text)
+
+    def get_clusters(self, group_id):
+        self.__test_parameter_for_string(group_id, 'group_id')
+        url = urljoin(self.url, 'groups/{0}/clusters'.format(group_id))
+        result = self.__get(url)
+
+        return json.loads(result.text)
+
+    def get_cluster(self, group_id, cluster_id):
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(cluster_id, 'cluster_id')
+        url = urljoin(self.url, 'groups/{0}/clusters/{1}'.format(group_id, cluster_id))
+        result = self.__get(url)
+
+        return json.loads(result.text)
+
+    def update_cluster(self, group_id, cluster_id, cluster_name):
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(cluster_id, 'cluster_id')
+        self.__test_parameter_for_string(cluster_id, 'cluster_name')
+
+        url = urljoin(self.url, 'groups/{0}/clusters/{1}'.format(group_id, cluster_id))
+        result = self.__update(url, '{ "clusterName": "{0}" }'.format(cluster_name))
+
+        return json.loads(result.text)
+
     def get_groups(self):
         """
         Get the list of groups that the current username / API Key have access to.
@@ -104,7 +338,7 @@ class PingMeClient:
 
         self.__test_parameter_for_string(group_id, 'group_id')
 
-        url = urljoin(self.url, 'groups/' + group_id)
+        url = urljoin(self.url, 'groups/{0}'.format(group_id))
         result = self.__get(url)
 
         return json.loads(result.text)
@@ -118,187 +352,69 @@ class PingMeClient:
         """
         self.__test_parameter_for_string(group_name, 'groupName')
 
-        url = urljoin(self.url, 'groups/byName/' + group_name)
+        url = urljoin(self.url, 'groups/byName/{0}'.format(group_name))
         result = self.__get(url)
 
         return json.loads(result.text)
 
-    def get_hosts(self, group_id):
-        """
-        Get the list of hosts in the specified group. [1]
-        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/hosts/#get-all-hosts-in-a-group
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
-                         getGroupByName to get the Id
-        :return: The list of hosts in the group.
-        """
+    def create_group(self, group_name):
+        self.__test_parameter_for_string(group_name, 'group_name')
 
-        self.__test_parameter_for_string(group_id, 'group_id')
-
-        url = urljoin(self.url, 'groups/' + group_id + '/hosts')
-        result = self.__get(url)
+        url = urljoin(self.url, 'groups/')
+        result = self.__post(url, ' { "name" : "{0}" }'.format(group_name))
 
         return json.loads(result.text)
 
-    def get_host(self, group_id, host_id):
-        """
-        Get a host by host_id [1]
-        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/hosts/#get-a-host-by-id
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
-                         getGroupByName to get the Id
-        :param host_id: The Id of the host. If only host_name:port is known, use getHostByName
-        :return: The Host object
-        """
-
+    def delete_group(self, group_id):
         self.__test_parameter_for_string(group_id, 'group_id')
-        self.__test_parameter_for_string(host_id, 'host_id')
 
-        url = urljoin(self.url, 'groups/' + group_id + '/hosts/' + host_id)
-        result = self.__get(url)
-
-        return json.loads(result.text)
-
-    def get_host_by_name(self, group_id, host_name):
-        """
-        Get a host by host_name:port [1]
-        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/hosts/#get-a-host-by-name-and-port
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
-                         getGroupByName to get the Id
-        :param host_name: The host_name:port combination of the host to retrieve
-        :return: The Host object
-        """
-
-        self.__test_parameter_for_string(group_id, 'group_id')
-        self.__test_parameter_for_string(host_name, 'host_name')
-
-        url = urljoin(self.url, 'groups/' + group_id + '/hosts/byName/' + host_name)
-        result = self.__get(url)
-
-        return json.loads(result.text)
-
-    def create_host(self, group_id, host):
-        """
-        Create a new host in the group. This is done using a host object. [1]
-        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/hosts/#create-a-host
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
-                         getGroupByName to get the Id
-        :param host: The host object that needs to be created. See Cloud Manager docs link above.
-        :return: The status of the call. Should be success or failure.
-        """
-
-        self.__test_parameter_for_string(group_id, 'group_id')
-        self.__test_parameter_for_dictionary(host, 'host')
-
-        # I should probably have some validation of the dict here...
-
-        url = urljoin(self.url, 'groups/' + group_id + '/hosts')
-        result = self.__post(url, host)
-
-        return json.loads(result.text)
-
-    def update_host(self, group_id, host):
-        """
-        :param group_id: The Id of the group, if not known, use the groupName and call getGroupByName to get the Id
-        :param host: The host object that needs to be updated. This needs to include the host_id.
-        :return: The status of the call. Should be success or failure.
-        """
-        self.__test_parameter_for_string(group_id, 'group_id')
-        self.__test_parameter_for_dictionary(host, 'host')
-
-        # I should probably have some validation of the dict here...
-
-        url = urljoin(self.url, 'groups/' + group_id + '/hosts')
-        result = self.__update(url, host)
-
-        return json.loads(result.text)
-
-    def delete_host(self, group_id, host_id):
-        """
-
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
-                         getGroupByName to get the Id
-        :param host_id:
-        :return:
-        """
-        self.__test_parameter_for_string(group_id, 'group_id')
-        self.__test_parameter_for_string(host_id, 'host_id')
-
-        url = urljoin(self.url, 'groups/' + group_id + '/hosts/' + host_id)
+        url = urljoin(self.url, 'groups/{0}'.format(group_id))
         result = self.__delete(url)
 
         return json.loads(result.text)
 
-    def get_last_ping(self, group_id, host_id):
-        """
-
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
-                         getGroupByName to get the Id
-        :param host_id:
-        :return:
-        """
+    def get_group_users(self, group_id):
         self.__test_parameter_for_string(group_id, 'group_id')
-        self.__test_parameter_for_string(host_id, 'host_id')
 
-        url = urljoin(self.url, 'groups/' + group_id + '/hosts/' + host_id + '/lastPing')
+        url = urljoin(self.url, 'groups/{0}/users'.format(group_id))
         result = self.__get(url)
 
         return json.loads(result.text)
 
-    def get_metrics(self, group_id, host_id):
-        """
-
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
-                         getGroupByName to get the Id
-        :param host_id:
-        :return:
-        """
+    def add_user_to_group(self, group_id, users):
         self.__test_parameter_for_string(group_id, 'group_id')
-        self.__test_parameter_for_string(host_id, 'host_id')
+        self.__test_parameter_for_dictionary(users, 'users')
 
-        url = urljoin(self.url, 'groups/' + group_id + '/hosts/' + host_id + '/metrics')
-        result = self.__get(url)
+        # I should probably have some validation of the dict here...
+
+        url = urljoin(self.url, 'groups/{0}/users'.format(group_id))
+        result = self.__update(url, users)
 
         return json.loads(result.text)
 
-    def get_metric(self, group_id, host_id, metric_id, device_name=None, granularity="1M", period="P2D"):
-        """
-
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
-                         getGroupByName to get the Id
-        :param host_id:
-        :param metric_id:
-        :param device_name:
-        :param granularity:
-        :param period:
-        :return:
-        """
+    def remove_user_from_group(self, group_id, user_id):
         self.__test_parameter_for_string(group_id, 'group_id')
-        self.__test_parameter_for_string(host_id, 'host_id')
-        self.__test_parameter_for_string(metric_id, 'metric_id')
-        if device_name is not None:
-            url = urljoin(self.url,
-                          'groups/{0}/hosts/{1}/metrics/{2}/{3}?granularity={4}&period={5}'.format(group_id, host_id,
-                                                                                                   metric_id,
-                                                                                                   device_name,
-                                                                                                   granularity, period))
-        else:
-            url = urljoin(self.url,
-                          'groups/{0}/hosts/{1}/metrics/{2}?granularity={3}&period={4}'.format(group_id, host_id,
-                                                                                               metric_id, granularity,
-                                                                                               period))
-        result = self.__get(url)
+        self.__test_parameter_for_string(user_id, 'user_id')
+
+        url = urljoin(self.url, 'groups/{0}/users/{1}'.format(group_id, user_id))
+        result = self.__delete(url)
 
         return json.loads(result.text)
 
     def __get(self, url):
+        logging.debug('GET Call to {0}'.format(url))
         return requests.get(url, auth=HTTPDigestAuth(self.username, self.apiKey))
 
     def __update(self, url, data):
+        logging.debug('PATCH Call to {0} with {1}'.format(url, data))
         return requests.patch(url, auth=HTTPDigestAuth(self.username, self.apiKey), data=data)
 
     def __delete(self, url):
+        logging.debug('DELETE Call to {0}'.format(url))
         return requests.delete(url, auth=HTTPDigestAuth(self.username, self.apiKey))
 
     def __post(self, url, data):
+        logging.debug('POST Call to {0} with {1}'.format(url, data))
         return requests.post(url, auth=HTTPDigestAuth(self.username, self.apiKey), data=data)
 
     @staticmethod
