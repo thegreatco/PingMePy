@@ -1,9 +1,8 @@
-from PingMePy.PingMe import PingMeClient
 import unittest
 import json
+from PingMePy import PingMeClient
 
 __author__ = 'TheGreatCO'
-
 
 
 class PingMeClientTests(unittest.TestCase):

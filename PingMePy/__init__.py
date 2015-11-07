@@ -1,1 +1,2 @@
-__author__ = 'TheGreatCO'
+import PingMeClient
+PingMeClient = PingMeClient
