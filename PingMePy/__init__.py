@@ -1,2 +1,1 @@
-import PingMeClient
-PingMeClient = PingMeClient
+from PingMePy.PingMeClient import PingMeClient
