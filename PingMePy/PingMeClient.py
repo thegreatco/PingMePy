@@ -1,5 +1,6 @@
 from datetime import datetime
-
+import warnings
+import functools
 import requests
 from requests.auth import HTTPDigestAuth
 from urlparse import urljoin
@@ -13,19 +14,22 @@ class PingMeClient:
     url = None
     username = None
     apiKey = None
+    user = None
 
-    def __init__(self, username, api_key, base_url='https://cloud.mongodb.com/'):
+    def __init__(self, username, apikey, base_url='https://cloud.mongodb.com/'):
         """
         Initiate a new instance of the PingMePy class. It defaults to http://cloud.mongodb.com,
         however a local OpsManager instance can be specified.
         :param username: The username used to log into Cloud Manager / Ops Manager
-        :param api_key: The API Key associated with the username
+        :param apikey: The API Key associated with the username
         :param base_url: The base URL of the Ops Manager installation. Leave blank for Cloud Manager
         :return: An instance of the PingMeClient class
         """
         self.username = username
-        self.apiKey = api_key
+        self.apiKey = apikey
         self.url = urljoin(base_url, 'api/public/v1.0/')
+        self.user = self.get_user_by_name(self.username)
+
 
     # region Hosts
     def get_hosts(self, group_id):
@@ -74,6 +78,7 @@ class PingMeClient:
 
         self.__test_parameter_for_string(group_id, 'group_id')
         self.__test_parameter_for_string(host_name, 'host_name')
+        self.__test_parameter_contains_string(host_name, "host_name", ":")
 
         url = urljoin(self.url, 'groups/{0}/hosts/byName/{1}'.format(group_id, host_name))
         result = self.__get(url)
@@ -92,6 +97,15 @@ class PingMeClient:
 
         self.__test_parameter_for_string(group_id, 'group_id')
         self.__test_parameter_for_dictionary(host, 'host')
+        self.__test_parameter_for_string(host['hostname'], 'host.hostname')
+        self.__test_parameter_for_string(host['port'], 'host.port')
+        if host['authMechanismName'] == "MONGODB_CR":
+            self.__test_parameter_for_string(host['username'], 'host.username')
+            self.__test_parameter_for_string(host['password'], 'host.password')
+        if host['authMechanismName'] == "MONGODB_X509":
+            self.__test_parameter_is_value(host['username'], 'host.username', None)
+            self.__test_parameter_is_value(host['password'], 'host.password', None)
+            self.__test_parameter_is_value(host['sslEnabled'], 'host.sslEnabled', True)
 
         # I should probably have some validation of the dict here...
 
@@ -111,6 +125,15 @@ class PingMeClient:
         """
         self.__test_parameter_for_string(group_id, 'group_id')
         self.__test_parameter_for_dictionary(host, 'host')
+        self.__test_parameter_for_string(host['hostname'], 'host.hostname')
+        self.__test_parameter_for_string(host['port'], 'host.port')
+        if host['authMechanismName'] == "MONGODB_CR":
+            self.__test_parameter_for_string(host['username'], 'host.username')
+            self.__test_parameter_for_string(host['password'], 'host.password')
+        if host['authMechanismName'] == "MONGODB_X509":
+            self.__test_parameter_is_value(host['username'], 'host.username', None)
+            self.__test_parameter_is_value(host['password'], 'host.password', None)
+            self.__test_parameter_is_value(host['sslEnabled'], 'host.sslEnabled', True)
 
         # I should probably have some validation of the dict here...
 
@@ -219,6 +242,7 @@ class PingMeClient:
     # endregion
 
     # region Metrics
+    @deprecated
     def get_metrics(self, group_id, host_id):
         """
 
@@ -235,7 +259,8 @@ class PingMeClient:
         result = self.__get(url)
 
         return json.loads(result.text)
-
+    
+    @deprecated
     def get_metric(self, group_id, host_id, metric_id, granularity="1M", period="P2D"):
         """
 
@@ -259,6 +284,7 @@ class PingMeClient:
 
         return json.loads(result.text)
 
+    @deprecated
     def get_device_metric(self, group_id, host_id, metric_id, device_name, granularity="1M", period="P2D"):
         """
 
@@ -285,6 +311,7 @@ class PingMeClient:
 
         return json.loads(result.text)
 
+    @deprecated
     def get_database_metric(self, group_id, host_id, metric_id, database_name, granularity="1M", period="P2D"):
         """
 
@@ -389,7 +416,7 @@ class PingMeClient:
 
         return json.loads(result.text)
 
-    # This may need to be removed
+
     def get_group_by_name(self, group_name):
         """
         Get a single group by its name [1]
@@ -566,7 +593,7 @@ class PingMeClient:
     # endregion
 
     # region Alerts
-    def get_all_alerts(self, group_id, status=None):
+    def get_alerts(self, group_id, status=None):
         """
         Get all of the alerts regardless of status, for the group_id [1]
         [1]: https://docs.opsmanager.mongodb.com/current/reference/api/alerts/#get-all-alerts
@@ -603,7 +630,7 @@ class PingMeClient:
 
         return json.loads(result.text)
 
-    def get_alert_config_for_alert(self, group_id, alert_id):
+    def get_alert_config(self, group_id, alert_id):
         """
         Get the configuration that triggered the alert. [1]
         [1]: https://docs.opsmanager.mongodb.com/current/reference/api/alerts/#get-alert-configurations-that-triggered-an-alert
@@ -646,7 +673,7 @@ class PingMeClient:
     # endregion
 
     # region Alert Configurations
-    def get_all_alert_configs(self, group_id):
+    def get_alert_configs(self, group_id):
         """
 
         :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
@@ -766,6 +793,66 @@ class PingMeClient:
 
     # endregion
 
+    # region Maintenance Windows
+    def get_maintenance_windows(self, group_id):
+        """
+        Get all maintenance windows with end dates in the future.
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
+                         get_group_by_name to get the Id
+        :return:
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+
+        url = urljoin(self.url, 'groups/{0}/maintenanceWindows'.format(group_id))
+        result = self.__get(url)
+
+        return json.loads(result.text)
+
+    
+    def get_maintenance_window(self, group_id, maintenance_window_id)""
+        """
+        Get a Single Maintenance Window by its ID.
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
+                         get_group_by_name to get the Id
+        :return:
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+
+        url = urljoin(self.url, 'groups/{0}/maintenanceWindows'.format(group_id))
+        result = self.__get(url)
+
+        return json.loads(result.text)
+    # endregion
+
+    # region Backup Configurations
+    # endregion
+
+    # region Snapshot Schedule
+    # endregion
+
+    # region Snapshots
+    # endregion
+
+    # region Checkpoints
+    # endregion
+
+    # region Restore Jobs
+    # endregion
+
+    # region Whitelist
+    def get_whitelist(self):
+        url = urljoin(self.url, 'users/{0}/whitelist'.format(self.user['id']))
+        result = self.__get(url)
+
+        return json.loads(result.text)
+    # endregion
+
+    # region Automation Configuration
+    # endregion
+
+    # region Automation Status
+    # endregion
+
     # region HTTP Methods
     def __get(self, url):
         """
@@ -817,3 +904,27 @@ class PingMeClient:
     def __test_parameter_for_dictionary(param, param_name):
         if not isinstance(param, dict) or param is None or len(param) == 0:
             raise Exception(str.format('{0} must be a dictionary and not empty.'), param_name)
+
+    @staticmethod
+    def __test_parameter_contains_string(param, param_name, contains_val):
+        if contains_val not in param:
+            raise Exception(str.format('{0} must be in proper format. Missing {1}'), param_name, contains_val)
+    @staticmethod
+    def __test_parameter_is_value(param, param_name, expected_val)
+        if not param == True:
+            raise Exception(str.format('{0} is {1}, expected value is {2}.', param_name, param, expected_val))
+
+def deprecated(func):
+    """This is a decorator which can be used to mark functions
+    as deprecated. It will result in a warning being emitted
+    when the function is used."""
+    @functools.wraps(func)
+        def new_func(*args, **kwargs):
+            warnings.warn_explicit(
+                "Call to deprecated function {}.".format(func.__name__),
+                category=DeprecationWarning,
+                filename=func.func_code.co_filename,
+                lineno=func.func_code.co_firstlineno + 1
+            )
+        return func(*args, **kwargs)
+    return new_func
