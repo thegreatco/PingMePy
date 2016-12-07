@@ -78,7 +78,7 @@ class PingMeClient:
 
         self.__test_parameter_for_string(group_id, 'group_id')
         self.__test_parameter_for_string(host_name, 'host_name')
-        self.__test_parameter_contains_string(host_name, "host_name", ":")
+        self.__test_parameter_contains_val(host_name, "host_name", ":")
 
         url = urljoin(self.url, 'groups/{0}/hosts/byName/{1}'.format(group_id, host_name))
         result = self.__get(url)
@@ -797,6 +797,7 @@ class PingMeClient:
     def get_maintenance_windows(self, group_id):
         """
         Get all maintenance windows with end dates in the future.
+        https://docs.opsmanager.mongodb.com/current/reference/api/maintenance-windows/#get-all-maintenance-windows
         :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
                          get_group_by_name to get the Id
         :return:
@@ -809,25 +810,138 @@ class PingMeClient:
         return json.loads(result.text)
 
     
-    def get_maintenance_window(self, group_id, maintenance_window_id)""
+    def get_maintenance_window(self, group_id, maintenance_window_id):
         """
         Get a Single Maintenance Window by its ID.
+        https://docs.opsmanager.mongodb.com/current/reference/api/maintenance-windows/#get-a-single-maintenance-window-by-its-id
         :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
                          get_group_by_name to get the Id
         :return:
         """
         self.__test_parameter_for_string(group_id, 'group_id')
 
-        url = urljoin(self.url, 'groups/{0}/maintenanceWindows'.format(group_id))
+        url = urljoin(self.url, 'groups/{0}/maintenanceWindows/{1}'.format(group_id, maintenance_window_id))
         result = self.__get(url)
+
+        return json.loads(result.text)
+
+
+    def create_maintenance_window(self, group_id, maintenance_window):
+        """
+        Create a new Maintenance Window for the group.
+        https://docs.opsmanager.mongodb.com/current/reference/api/maintenance-windows/#create-a-maintenance-window
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
+                         get_group_by_name to get the Id
+        :return:
+        """
+
+        self.__test_parameter_contains_val(maintenance_window, 'startDate', 'startDate')
+        self.__test_parameter_contains_val(maintenance_window, 'endDate', 'endDate')
+        self.__test_parameter_contains_val(maintenance_window, 'description', 'description')
+        self.__test_parameter_contains_val(maintenance_window, 'alertTypeNames', 'alertTypeNames')
+
+        url = urljoin(self.url, 'groups{0}/maintenanceWindows'.format(group_id))
+        result = self.__post(url, maintenance_window)
+
+        return json.loads(result.text)
+
+    def update_maintenance_window(self, group_id, maintenance_window):
+        """
+        Update a new Maintenance Window for the group. 
+        https://docs.opsmanager.mongodb.com/current/reference/api/maintenance-windows/#update-a-maintenance-window
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
+                         get_group_by_name to get the Id
+        :param maintenance_window: The maintenance window object.
+        :return:
+        """
+        self.__test_parameter_contains_val(maintenance_window, 'id', 'id')
+        self.__test_parameter_contains_val(maintenance_window, 'startDate', 'startDate')
+        self.__test_parameter_contains_val(maintenance_window, 'endDate', 'endDate')
+        self.__test_parameter_contains_val(maintenance_window, 'description', 'description')
+        self.__test_parameter_contains_val(maintenance_window, 'alertTypeNames', 'alertTypeNames')
+
+        url = urljoin(self.url, 'groups{0}/maintenanceWindows/{1}'.format(group_id, maintenance_window['id']))
+        result = self.__update(url, maintenance_window)
+
+        return json.loads(result.text)
+
+    def delete_maintenance_window(self, group_id, maintenance_window_id):
+        """
+        Delete a new Maintenance Window for the group
+        https://docs.opsmanager.mongodb.com/current/reference/api/maintenance-windows/#delete-a-maintenance-window
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known, use the groupName and call
+                         get_group_by_name to get the Id
+        :return:
+        """
+
+        url = urljoin(self.url, 'groups{0}/maintenanceWindows/{1}'.format(group_id, maintenance_window_id))
+        result = self.__delete(url, maintenance_window_id)
+
+        return json.loads(result.text)
+
+    # endregion
+
+    # region Backup Configurations
+    def get_backup_configurations(self, group_id):
+        self.__test_parameter_for_string(group_id, 'group_id')
+
+        url = urljoin(self.url, 'groups/{0}/backupConfigs'.format(group_id))
+        result = self.__get(url)
+
+        return json.loads(result.text)
+
+
+    def get_backup_configuration(self, group_id, cluster_id):
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(cluster_id, 'cluster_id')
+
+        url = urljoin(self.url, 'groups/{0}/backupConfigs/{1}'.format(group_id, cluster_id))
+        result = self.__get(url)
+
+        return json.loads(result.text)
+
+
+    def update_backup_configuration(self, group_id, backup_config):
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_contains_val(backup_config, 'cluster_id', 'cluster_id')
+        self.__test_parameter_contains_val(backup_config, 'statusName', 'statusName')
+
+        url = urljoin(self.url, 'groups/{0}/backupConfigs/{1}'.format(group_id, backup_config['cluster_id']))
+        result = self.__update(url, backup_config)
+
+        return json.loads(result.text)
+
+    
+    def update_backup_configuration(self, group_id, cluster_id, backup_config):
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(cluster_id, 'cluster_id')
+        self.__test_parameter_contains_val(backup_config, 'statusName', 'statusName')
+
+        url = urljoin(self.url, 'groups/{0}/backupConfigs/{1}'.format(group_id, cluster_id))
+        result = self.__update(url, backup_config)
 
         return json.loads(result.text)
     # endregion
 
-    # region Backup Configurations
-    # endregion
-
     # region Snapshot Schedule
+    def get_snapshot_schedule(self, group_id, cluster_id):
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(cluster_id, 'cluster_id')
+
+        url = urljoin(self.url, 'groups/{0}/backupConfigs/{1}/snapshotSchedule'.format(group_id, cluster_id))
+        result = self.__get(url)
+
+        return json.loads(result.text)
+
+
+    def update_snapshot_schedule(self, group_id, snapshot_schedule):
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(cluster_id, 'cluster_id')
+
+        url = urljoin(self.url, 'groups/{0}/backupConfigs/{1}/snapshotSchedule'.format(group_id, cluster_id))
+        result = self.__update(url, snapshot_schedule)
+
+        return json.loads(result.text)
     # endregion
 
     # region Snapshots
@@ -906,7 +1020,7 @@ class PingMeClient:
             raise Exception(str.format('{0} must be a dictionary and not empty.'), param_name)
 
     @staticmethod
-    def __test_parameter_contains_string(param, param_name, contains_val):
+    def __test_parameter_contains_val(param, param_name, contains_val):
         if contains_val not in param:
             raise Exception(str.format('{0} must be in proper format. Missing {1}'), param_name, contains_val)
     @staticmethod
