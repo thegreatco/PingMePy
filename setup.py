@@ -3,7 +3,7 @@ from distutils.core import setup
 setup(
     name='PingMePy',
     packages=['PingMePy'],
-    version='0.3',
+    version='0.4',
     description='A wrapper library around the MongoDB OpsManager / Cloud Manager API',
     author='TheGreatCO',
     author_email='thegreatco@thegreatco.com',

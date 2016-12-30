@@ -126,10 +126,10 @@ class PingMeClient(object):
         self.__test_parameter_for_dictionary(host, 'host')
         self.__test_parameter_for_string(host['hostname'], 'host.hostname')
         self.__test_parameter_for_int(host['port'], 'host.port')
-        if host['authMechanismName'] == "MONGODB_CR":
+        if host.get('authMechanismName', None) == "MONGODB_CR":
             self.__test_parameter_for_string(host['username'], 'host.username')
             self.__test_parameter_for_string(host['password'], 'host.password')
-        if host['authMechanismName'] == "MONGODB_X509":
+        if host.get('authMechanismName', None) == "MONGODB_X509":
             self.__test_parameter_is_value(host['username'], 'host.username', None)
             self.__test_parameter_is_value(host['password'], 'host.password', None)
             self.__test_parameter_is_value(host['sslEnabled'], 'host.sslEnabled', True)
@@ -1183,9 +1183,9 @@ class PingMeClient(object):
         self.__test_parameter_for_string(cluster_id, 'cluster_id')
         self.__test_parameter_for_dictionary(snapshot, 'snapshot')
         # self.__test_parameter_contains_val(snapshot, 'snapshotId', 'snapshotId')
-        checkpoint_id = snapshot.get('checkpointId', default=None)
-        snapshot_id = snapshot.get('snapshotId', default=None)
-        timestamp = snapshot.get('timestamp', default=None)
+        checkpoint_id = snapshot.get('checkpointId', None)
+        snapshot_id = snapshot.get('snapshotId', None)
+        timestamp = snapshot.get('timestamp', None)
         if snapshot_id is None and timestamp is None and checkpoint_id is None:
             raise Exception('snapshot.snapshotId and snapshot.timestamp and snapshot.checkpointId'\
                             'cannot be None. See https://docs.opsmanager.mongodb.com/current/reference/api/restore-jobs/#examples-create-restore-jobs'\
@@ -1193,9 +1193,9 @@ class PingMeClient(object):
         if timestamp is not None:
             self.__test_parameter_contains_val(timestamp, 'date', 'date')
             self.__test_parameter_contains_val(timestamp, 'increment', 'increment')
-        if snapshot.get('delivery', default=None) is not None:
+        if snapshot.get('delivery', None) is not None:
             delivery = snapshot.get('delivery')
-            if delivery.get('methodName', default=None) == 'SCP':
+            if delivery.get('methodName', None) == 'SCP':
                 self.__test_parameter_for_string(delivery.get('hostname'),
                                                  'snapshot.delivery.hostname')
                 self.__test_parameter_for_int(delivery.get('port'), 'snapshot.delivery.port')
@@ -1224,7 +1224,7 @@ class PingMeClient(object):
         self.__test_parameter_for_string(host_id, 'host_id')
         self.__test_parameter_for_dictionary(snapshot, 'snapshot')
 
-        snapshot_id = snapshot.get('snapshotId', default=None)
+        snapshot_id = snapshot.get('snapshotId', None)
         if snapshot_id is None:
             raise Exception('snapshot.snapshotId cannot be None. '\
                             'See https://docs.opsmanager.mongodb.com/current/reference/api/restore-jobs/#examples-create-restore-jobs'\
@@ -1316,7 +1316,7 @@ class PingMeClient(object):
         :return: The result of the PATCH
         """
         logging.debug('PATCH Call to {0} with {1}'.format(url, data))
-        return requests.patch(url, auth=HTTPDigestAuth(self.username, self.api_key), data=data).json()
+        return requests.patch(url, auth=HTTPDigestAuth(self.username, self.api_key), json=data).json()
 
     def __delete(self, url):
         """
@@ -1335,7 +1335,7 @@ class PingMeClient(object):
         :return: The result of the POST
         """
         logging.debug('POST Call to {0} with {1}'.format(url, data))
-        return requests.post(url, auth=HTTPDigestAuth(self.username, self.api_key), data=data).json()
+        return requests.post(url, auth=HTTPDigestAuth(self.username, self.api_key), json=data).json()
 
     # endregion
 
