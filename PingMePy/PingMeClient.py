@@ -136,7 +136,7 @@ class PingMeClient(object):
 
         # I should probably have some validation of the dict here...
 
-        url = urljoin(self.url, 'groups/{0}'.format(group_id))
+        url = urljoin(self.url, 'groups/{0}/hosts'.format(group_id))
         result = self.__post(url, host)
 
         return result
