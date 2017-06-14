@@ -11,26 +11,26 @@ from requests.auth import HTTPDigestAuth
 
 __author__ = 'TheGreatCO'
 
-def deprecated(func):
+def deprecated(func, new_func_name):
     """This is a decorator which can be used to mark functions
     as deprecated. It will result in a warning being emitted
     when the function is used."""
     @functools.wraps(func)
-    def new_func(*args, **kwargs):
+    def new_func(new_func_name, *args, **kwargs):
         """
         This will actually display the warning for the decorator.
         """
         warnings.warn_explicit(
-            "Call to deprecated function {}.".format(func.__name__),
+            "Call to deprecated function {}. Use {} instead.".format(func.__name__, new_func_name),
             category=DeprecationWarning,
             filename=func.func_code.co_filename,
             lineno=func.func_code.co_firstlineno + 1)
         return func(*args, **kwargs)
-    return new_func
+    return new_func(new_func_name)
 
 class PingMeClient(object):
     """
-    Stuff
+    A client for interacting with the MongoDB Cloud or Ops Manager API.
     """
     url = None
     username = None
@@ -59,30 +59,65 @@ class PingMeClient(object):
 
 
     # region Hosts
-    def get_hosts(self, group_id):
+    # Last modified 2017-07-14
+    def get_hosts(self, group_id, items_per_page=100, page_num=1):
         """
-        Get the list of hosts in the specified group. [1]
-        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/hosts/#get-all-hosts-in-a-group
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
-                         use the groupName and call get_group_by_name to get the Id
+        Get all MongoDB processes in a group. The resulting list is sorted alphabetically
+        by hostname:port. [1]
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/hosts-get-all-in-group/
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param items_per_page: The number of items to include in a page. Default is 100.
+        :param page_num: The page number of the results to retrieve.
         :return: The list of hosts in the group.
         """
 
         self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_int(items_per_page, 'items_per_page')
+        self.__test_parameter_for_int(page_num, 'page_num')
 
-        url = urljoin(self.url, 'groups/{0}/hosts'.format(group_id))
+        url = urljoin(self.url, 'groups/{0}/hosts?itemsPerPage={1}&pageNum{2}'
+                      .format(group_id, items_per_page, page_num))
+
         result = self.__get(url)
 
         return result
 
+    # Last modified 2017-07-14
+    def get_hosts_in_cluster(self, group_id, cluster_id, items_per_page=100, page_num=1):
+        """
+        Get all MongoDB processes in a group. Use the clusterId query parameter to only get the
+        processes that belong to the specified cluster. The resulting list is sorted alphabetically
+        by hostname:port. [1]
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/hosts-get-all-in-group/
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param cluster_id: The ID of the cluster to which the MongoDB processes belongs.
+                           Specify this query parameter to limit the response to only
+                           processes belonging to the specified cluster.
+        :param items_per_page: The number of items to include in a page. Default is 100.
+        :param page_num: The page number of the results to retrieve.
+        :return: The list of hosts in the group.
+        """
+
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(cluster_id, 'cluster_id')
+        self.__test_parameter_for_int(items_per_page, 'items_per_page')
+        self.__test_parameter_for_int(page_num, 'page_num')
+
+        url = urljoin(self.url, 'groups/{0}/hosts?itemsPerPage={1}&pageNum{2}&clusterId={3}'.format(group_id, items_per_page, page_num, cluster_id))
+
+        result = self.__get(url)
+
+        return result
+
+    # Last modified 2017-07-14
     def get_host(self, group_id, host_id):
         """
-        Get a host by host_id [1]
-        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/hosts/#get-a-host-by-id
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
-                         use the groupName and call get_group_by_name to get the Id
-        :param host_id: The Id of the host. If only host_name:port is known, use getHostByName
-        :return: The Host object
+        Get the MongoDB process with the specified host ID.[1]
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param host_id: ID of the host for the MongoDB process.
+        :return: The Host object. [2]
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/host-get-by-id/
+        [2]: https://docs.opsmanager.mongodb.com/current/reference/api/host-get-by-id/#response-elements
         """
 
         self.__test_parameter_for_string(group_id, 'group_id')
@@ -93,6 +128,8 @@ class PingMeClient(object):
 
         return result
 
+    @deprecated("get_host_by_hostname_and_port")
+    # Last modified 2017-07-14
     def get_host_by_name(self, group_id, host_name):
         """
         Get a host by host_name:port [1]
@@ -111,24 +148,51 @@ class PingMeClient(object):
         result = self.__get(url)
 
         return result
+    
+    # Last modified 2017-07-14
+    def get_host_by_hostname_and_port(self, group_id, host_name, port):
+        """
+        Get a host by host_name and port [1]
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/host-get-by-hostname-port/
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param host_name: Primary hostname. A MongoDB process typically has several aliases, 
+                         so the primary is the best available name as decided by Cloud/Ops Manager.
+        :return: The Host object
+        """
 
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(host_name, 'host_name')
+        self.__test_parameter_for_int(port, 'port')
+
+        url = urljoin(self.url, 'groups/{0}/hosts/byName/{1}:{2}'.format(group_id, host_name, port))
+        result = self.__get(url)
+
+        return result
+    
+    # Last modified 2017-07-14
     def create_host(self, group_id, host):
         """
-        Create a new host in the group. This is done using a host object. [1]
-        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/hosts/#create-a-host
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
-                         use the groupName and call get_group_by_name to get the Id
-        :param host: The host object that needs to be created. See Cloud Manager docs link above.
-        :return: The status of the call. Should be success or failure.
+        Start monitoring a new MongoDB process. The Monitoring Agent will start monitoring the
+        MongoDB process on the hostname and port you specify. Ops Manager knows only the
+        information that you provided. Thus, the document returned in the response document
+        will include blank values while Ops Manager discovers the missing values. [1]
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param host: The host object that needs to be created. [2]
+        :return: The newly created host. [3]
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/create-host/
+        [2]: https://docs.opsmanager.mongodb.com/current/reference/api/create-host/#request-body-parameters
+        [3]: https://docs.opsmanager.mongodb.com/current/reference/api/create-host/#response-elements
         """
 
         self.__test_parameter_for_string(group_id, 'group_id')
         self.__test_parameter_for_dictionary(host, 'host')
         self.__test_parameter_for_string(host['hostname'], 'host.hostname')
         self.__test_parameter_for_int(host['port'], 'host.port')
+
         if host.get('authMechanismName', None) == "MONGODB_CR":
             self.__test_parameter_for_string(host['username'], 'host.username')
             self.__test_parameter_for_string(host['password'], 'host.password')
+
         if host.get('authMechanismName', None) == "MONGODB_X509":
             self.__test_parameter_is_value(host['username'], 'host.username', None)
             self.__test_parameter_is_value(host['password'], 'host.password', None)
@@ -141,14 +205,17 @@ class PingMeClient(object):
 
         return result
 
-    def update_host(self, group_id, host):
+    # Last modified 2017-07-14
+    def update_host(self, group_id, host_id, host):
         """
-        Update the specified host in the group [1]
-        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/hosts/#update-a-host
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
-                         use the groupName and call get_group_by_name to get the Id
-        :param host: The host object that needs to be updated. This needs to include the host_id.
-        :return: The status of the call.
+        Update the configuration of a monitored MongoDB process. [1]
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param host_id: ID of the host for the MongoDB process.
+        :param host: The host object that needs to be updated. [2]
+        :return: The status of the call. [3]
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/update-host/
+        [2]: https://docs.opsmanager.mongodb.com/current/reference/api/update-host/#request-body-parameters
+        [3]: https://docs.opsmanager.mongodb.com/current/reference/api/update-host/#response-elements
         """
         self.__test_parameter_for_string(group_id, 'group_id')
         self.__test_parameter_for_dictionary(host, 'host')
@@ -164,19 +231,21 @@ class PingMeClient(object):
 
         # I should probably have some validation of the dict here...
 
-        url = urljoin(self.url, 'groups/{0}/hosts'.format(group_id))
+        url = urljoin(self.url, 'groups/{0}/hosts/{1}'.format(group_id, host_id))
         result = self.__update(url, host)
 
         return result
 
+    # Last modified 2017-07-14
     def delete_host(self, group_id, host_id):
         """
-        Delete the specified host_id from the group
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
-                         use the groupName and call get_group_by_name to get the Id
-        :param host_id: The id of the host in Cloud Manager / Ops Manager, if not known,
-                        use the hostName and call get_host_by_name to get the Id
-        :return:
+        Stop monitoring a MongoDB process. The Monitoring Agent will start monitoring the
+        MongoDB process on the hostname and port you specify. [1]
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param host_id: ID of the host for the MongoDB process.
+        :return: The status of the call. [2]
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/delete-host/
+        [2]: https://docs.opsmanager.mongodb.com/current/reference/api/delete-host/#response-elements
         """
         self.__test_parameter_for_string(group_id, 'group_id')
         self.__test_parameter_for_string(host_id, 'host_id')
@@ -186,13 +255,13 @@ class PingMeClient(object):
 
         return result
 
+    # Last modified 2017-07-14
     def get_last_ping(self, group_id, host_id):
         """
         Get the ping object for the last ping received for this host.
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
-                         use the groupName and call get_group_by_name to get the Id
-        :param host_id: The id of the host in Cloud Manager / Ops Manager, if not known,
-                        use the hostName and call get_host_by_name to get the Id
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param host_id: ID of the host for the MongoDB process.
+        :return: The status of the call.
         :return: The ping object.
         """
         self.__test_parameter_for_string(group_id, 'group_id')
@@ -203,6 +272,257 @@ class PingMeClient(object):
 
         return result
 
+    # endregion
+
+    # region Disks
+    # Last modified 2017-07-14
+    def get_disk_partitions(self, group_id, host_id):
+        """
+        Retrieves the disks and disk partitions on which MongoDB runs. [1]
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param host_id: ID of the host for the MongoDB process.
+        :return: The status of the call.
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/disks/
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(host_id, 'host_id')
+
+        url = urljoin(self.url, 'groups/{0}/hosts/{1}/disks'.format(group_id, host_id))
+        result = self.__delete(url)
+
+        return result
+
+    # Last modified 2017-07-14
+    def get_disk_partition(self, group_id, host_id, partition_name):
+        """
+        Retrieves the specified disk or disk partition. [1]
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param host_id: ID of the host for the MongoDB process.
+        :param partition_name: The name of the partition.
+        :return: The status of the call.
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/disks/
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(host_id, 'host_id')
+        self.__test_parameter_for_string(partition_name, 'partition_name')
+
+        url = urljoin(self.url, 'groups/{0}/hosts/{1}/disks/{2}'.format(group_id, host_id,
+                                                                        partition_name))
+        result = self.__delete(url)
+
+        return result
+
+    # endregion
+
+    # region Databases
+    # Last modified 2017-07-14
+    def get_databases(self, group_id, host_id):
+        """
+        Retrieves the databases running on a MongoDB process. [1]
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param host_id: ID of the host for the MongoDB process.
+        :return: The status of the call.
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/databases/
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(host_id, 'host_id')
+
+        url = urljoin(self.url, 'groups/{0}/hosts/{1}/databases'.format(group_id, host_id))
+        result = self.__delete(url)
+
+        return result
+
+    # Last modified 2017-07-14
+    def get_single_database(self, group_id, host_id, database_name):
+        """
+        Retrieves a single database running on a MongoDB process. [1]
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param host_id: ID of the host for the MongoDB process.
+        :param database_name: The name of the database.
+        :return: The status of the call.
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/databases/
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(host_id, 'host_id')
+        self.__test_parameter_for_string(database_name, 'database_name')
+
+        url = urljoin(self.url, 'groups/{0}/hosts/{1}/databases/{2}'.format(group_id, host_id,
+                                                                            database_name))
+        result = self.__delete(url)
+
+        return result
+    # endregion
+
+    # region Clusters
+    # Last modified 2017-07-14
+    def get_clusters(self, group_id):
+        """
+        Get all clusters in a group. [1]
+        :param group_id: ID of the group that owns this MongoDB process.
+        :return: The list of clusters. [2]
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/clusters/#get-all-clusters
+        [2]: https://docs.opsmanager.mongodb.com/current/reference/api/clusters/#id4
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+
+        url = urljoin(self.url, 'groups/{0}/clusters'.format(group_id))
+        result = self.__get(url)
+
+        return result
+
+    # Last modified 2017-07-14
+    def get_clusters_in_cluster(self, group_id, parent_cluster_id):
+        """
+        Get all clusters in a group with the specified parent cluster. [1]
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param parent_cluster_id: ID of the parent cluster that owns the clusters.
+        :return: The list of clusters. [2]
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/clusters/#get-all-clusters
+        [2]: https://docs.opsmanager.mongodb.com/current/reference/api/clusters/#id4
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(parent_cluster_id, 'parent_cluster_id')
+
+        url = urljoin(self.url, 'groups/{0}/clusters?parentClusterId={1}'.format(group_id,
+                                                                                 parent_cluster_id))
+        result = self.__get(url)
+
+        return result
+
+    # Last modified 2017-07-14
+    def get_cluster(self, group_id, cluster_id):
+        """
+        Get a single cluster by ID. [1]
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param cluster_id: ID of the cluster.
+        :return: The cluster. [2]
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/clusters/#get-a-cluster
+        [2]: https://docs.opsmanager.mongodb.com/current/reference/api/clusters/#response
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(cluster_id, 'cluster_id')
+
+        url = urljoin(self.url, 'groups/{0}/clusters/{1}'.format(group_id, cluster_id))
+        result = self.__get(url)
+
+        return result
+
+    # Last modified 2017-07-14
+    def update_cluster(self, group_id, cluster_id, cluster_name):
+        """
+        Update a cluster by ID. The only property that you may modify is the clusterName,
+        since Cloud / Ops Manager discovers all other cluster properties. This operation
+        is only available on clusters of type SHARDED and SHARDED_REPLICA_SET.
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param cluster_id: ID of the cluster.
+        :param cluster_name: The name to set for the cluster.
+        :return: The cluster. [2]
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/clusters/#update-a-cluster
+        [2]: https://docs.opsmanager.mongodb.com/current/reference/api/clusters/#id7
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(cluster_id, 'cluster_id')
+        self.__test_parameter_for_string(cluster_id, 'cluster_name')
+
+        url = urljoin(self.url, 'groups/{0}/clusters/{1}'.format(group_id, cluster_id))
+        data = {"clusterName":cluster_name}
+        result = self.__update(url, data)
+
+        return result
+    # endregion
+
+    # region Measurements
+    # Last modified 2017-07-14
+    def get_host_measurements_by_period(self, group_id, host_id, granularity, period,
+                                        measurements=None):
+        """
+        Retrieves measurements collected by the Monitoring and Automation Agents for your MongoDB
+        processes, databases, and hardware disks. Monitoring Agents collect process and database
+        measurements using MongoDB diagnostic commands, including serverStatus and dbStats.
+        Automation Agents collect measurements for servers that run managed mongod and mongos
+        processes. [1]
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param host_id: ID of the host for the MongoDB process.
+        :param granularity: An ISO-8601-formatted time period that specifies the interval between
+                            measurement data points. For example, PT30S specifies 30-second
+                            granularity. The supported values for this parameter are the same as
+                            are available in the Granularity drop-down list when you view metrics
+                            in the Ops Manager interface.
+        :param period: How far back in the past to retrieve measurements, as specified by an
+                       ISO-8601 period string. For example, setting PT24H specifies 24 hours.
+                       An ISO-8601-formatted time period that specifies how far back in the
+                       past to query. For example, to request the last 36 hours,
+                       specify: period=P1DT12H.
+        :return: The status of the call.
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/measurements/
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(host_id, 'host_id')
+        self.__test_parameter_for_string(granularity, 'granularity')
+        self.__test_parameter_for_string(period, 'period')
+
+        url = urljoin(self.url,
+                      'groups/{0}/hosts/{1}/measurements?granularity={2}&period={3}'
+                      .format(group_id, host_id, granularity, period))
+
+        if measurements is not None:
+            m_parameter_string = "&".join(measurements)
+            url = "{0}&{1}".format(url, m_parameter_string)
+
+        result = self.__get(url)
+
+        return result
+
+    # Last modified 2017-07-14
+    def get_host_measurements_by_range(self, group_id, host_id, granularity, start,
+                                       end, measurements=None):
+        """
+        Retrieves measurements collected by the Monitoring and Automation Agents for your MongoDB
+        processes, databases, and hardware disks. Monitoring Agents collect process and database
+        measurements using MongoDB diagnostic commands, including serverStatus and dbStats.
+        Automation Agents collect measurements for servers that run managed mongod and mongos
+        processes. [1]
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param host_id: ID of the host for the MongoDB process.
+        :param granularity: An ISO-8601-formatted time period that specifies the interval between
+                            measurement data points. For example, PT30S specifies 30-second
+                            granularity. The supported values for this parameter are the same as
+                            are available in the Granularity drop-down list when you view metrics
+                            in the Ops Manager interface.
+        :param start: The time at which to start retrieving measurements, as specified by an
+                      ISO-8601 timestamp string. If you specify start you must also specify end.
+        :param end: The time at which to stop retrieving measurements, as specified by an
+                    ISO-8601 timestamp string. If you specify end you must also specify start.
+        :param m: Specifies which measurements to return. If m is not specified, all measurements
+                  are returned.
+
+                  To specify multiple values for m, you must repeat the m parameter. For example:
+
+                  ../measurements?m=CONNECTIONS&m=OPCOUNTER_CMD&m=OPCOUNTER_QUERY
+
+                  You must specify measurements that are valid for the host. Cloud / Ops Manager
+                  returns an error if any specified measurements are invalid For available
+                  measurements, see Measurement Types.
+        :return: The status of the call.
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/measurements/
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(host_id, 'host_id')
+        self.__test_parameter_for_string(granularity, 'granularity')
+        self.__test_parameter_for_string(start, 'start')
+        self.__test_parameter_for_string(end, 'end')
+
+        url = urljoin(self.url,
+                      'groups/{0}/hosts/{1}/measurements?granularity={2}&start={3}&end={4}'
+                      .format(group_id, host_id, granularity, start, end))
+
+        if measurements is not None:
+            m_parameter_string = "&".join(measurements)
+            url = "{0}&{1}".format(url, m_parameter_string)
+
+        result = self.__get(url)
+
+        return result
     # endregion
 
     # region Agents
@@ -354,53 +674,6 @@ class PingMeClient(object):
         url = urljoin(self.url, 'groups/{0}/hosts/{1}/metrics/{2}/{3}?granularity={4}&period={5}'
                       .format(group_id, host_id, metric_id, database_name, granularity, period))
         result = self.__get(url)
-
-        return result
-
-    # endregion
-
-    # region Clusters
-    def get_clusters(self, group_id):
-        """
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
-                         use the groupName and call get_group_by_name to get the Id
-        :return:
-        """
-        self.__test_parameter_for_string(group_id, 'group_id')
-        url = urljoin(self.url, 'groups/{0}/clusters'.format(group_id))
-        result = self.__get(url)
-
-        return result
-
-    def get_cluster(self, group_id, cluster_id):
-        """
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
-                         use the groupName and call get_group_by_name to get the Id
-        :param cluster_id:
-        :return:
-        """
-        self.__test_parameter_for_string(group_id, 'group_id')
-        self.__test_parameter_for_string(cluster_id, 'cluster_id')
-        url = urljoin(self.url, 'groups/{0}/clusters/{1}'.format(group_id, cluster_id))
-        result = self.__get(url)
-
-        return result
-
-    def update_cluster(self, group_id, cluster_id, cluster_name):
-        """
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
-                         use the groupName and call get_group_by_name to get the Id
-        :param cluster_id: The id of the cluster in Cloud Manager / Ops Manager, if not known,
-                           call get_clusters to get the id.
-        :param cluster_name: The name to set for the cluster.
-        :return:
-        """
-        self.__test_parameter_for_string(group_id, 'group_id')
-        self.__test_parameter_for_string(cluster_id, 'cluster_id')
-        self.__test_parameter_for_string(cluster_id, 'cluster_name')
-
-        url = urljoin(self.url, 'groups/{0}/clusters/{1}'.format(group_id, cluster_id))
-        result = self.__update(url, '{ "clusterName": "{0}" }'.format(cluster_name))
 
         return result
 
