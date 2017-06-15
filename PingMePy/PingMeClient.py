@@ -60,7 +60,7 @@ class PingMeClient(object):
 
     # region Hosts
     # Last modified 2017-07-14
-    def get_hosts(self, group_id, items_per_page=100, page_num=1):
+    def get_hosts(self, group_id, page_num=1, items_per_page=100):
         """
         Get all MongoDB processes in a group. The resulting list is sorted alphabetically
         by hostname:port. [1]
@@ -83,7 +83,7 @@ class PingMeClient(object):
         return result
 
     # Last modified 2017-07-14
-    def get_hosts_in_cluster(self, group_id, cluster_id, items_per_page=100, page_num=1):
+    def get_hosts_in_cluster(self, group_id, cluster_id, page_num=1, items_per_page=100):
         """
         Get all MongoDB processes in a group. Use the clusterId query parameter to only get the
         processes that belong to the specified cluster. The resulting list is sorted alphabetically
@@ -103,7 +103,8 @@ class PingMeClient(object):
         self.__test_parameter_for_int(items_per_page, 'items_per_page')
         self.__test_parameter_for_int(page_num, 'page_num')
 
-        url = urljoin(self.url, 'groups/{0}/hosts?itemsPerPage={1}&pageNum{2}&clusterId={3}'.format(group_id, items_per_page, page_num, cluster_id))
+        url = urljoin(self.url, 'groups/{0}/hosts?itemsPerPage={1}&pageNum{2}&clusterId={3}'
+                      .format(group_id, items_per_page, page_num, cluster_id))
 
         result = self.__get(url)
 
@@ -461,8 +462,7 @@ class PingMeClient(object):
         self.__test_parameter_for_string(granularity, 'granularity')
         self.__test_parameter_for_string(period, 'period')
 
-        url = urljoin(self.url,
-                      'groups/{0}/hosts/{1}/measurements?granularity={2}&period={3}'
+        url = urljoin(self.url, 'groups/{0}/hosts/{1}/measurements?granularity={2}&period={3}'
                       .format(group_id, host_id, granularity, period))
 
         if measurements is not None:
@@ -474,8 +474,8 @@ class PingMeClient(object):
         return result
 
     # Last modified 2017-07-14
-    def get_host_measurements_by_range(self, group_id, host_id, granularity, start,
-                                       end, measurements=None):
+    def get_host_measurements_by_time_range(self, group_id, host_id, granularity, start,
+                                            end, measurements=None):
         """
         Retrieves measurements collected by the Monitoring and Automation Agents for your MongoDB
         processes, databases, and hardware disks. Monitoring Agents collect process and database
@@ -493,16 +493,17 @@ class PingMeClient(object):
                       ISO-8601 timestamp string. If you specify start you must also specify end.
         :param end: The time at which to stop retrieving measurements, as specified by an
                     ISO-8601 timestamp string. If you specify end you must also specify start.
-        :param m: Specifies which measurements to return. If m is not specified, all measurements
-                  are returned.
+        :param measurements: Specifies which measurements to return. If m is not specified, all
+                             measurements are returned.
 
-                  To specify multiple values for m, you must repeat the m parameter. For example:
+                            To specify multiple values for m, you must repeat the m parameter.
+                            For example:
 
-                  ../measurements?m=CONNECTIONS&m=OPCOUNTER_CMD&m=OPCOUNTER_QUERY
+                            ../measurements?m=CONNECTIONS&m=OPCOUNTER_CMD&m=OPCOUNTER_QUERY
 
-                  You must specify measurements that are valid for the host. Cloud / Ops Manager
-                  returns an error if any specified measurements are invalid For available
-                  measurements, see Measurement Types.
+                            You must specify measurements that are valid for the host.
+                            Cloud / Ops Manager returns an error if any specified measurements
+                            are invalid For available  measurements, see Measurement Types.
         :return: The status of the call.
         [1]: https://docs.opsmanager.mongodb.com/current/reference/api/measurements/
         """
@@ -512,9 +513,9 @@ class PingMeClient(object):
         self.__test_parameter_for_string(start, 'start')
         self.__test_parameter_for_string(end, 'end')
 
-        url = urljoin(self.url,
-                      'groups/{0}/hosts/{1}/measurements?granularity={2}&start={3}&end={4}'
-                      .format(group_id, host_id, granularity, start, end))
+        url = urljoin(self.url, 'groups/{0}/hosts/{1}/measurements\
+                      ?granularity={2}&start={3}&end={4}'.format(group_id, host_id, granularity,
+                                                                 start, end))
 
         if measurements is not None:
             m_parameter_string = "&".join(measurements)
@@ -523,6 +524,426 @@ class PingMeClient(object):
         result = self.__get(url)
 
         return result
+
+    # Last modified 2017-07-14
+    def get_disk_partition_measurements_by_period(self, group_id, host_id, partition_name,
+                                                  granularity, period, measurements=None):
+        """
+        Disk measurements provide data on IOPS, disk use, and disk latency on the servers running
+        MongoDB, as collected by the Automation Agent. You must run Ops Manager Automation to
+        retrieve disk measurements. [1]
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param host_id: ID of the host for the MongoDB process.
+        :param partition_name: The name of the partition on the host.
+        :param granularity: An ISO-8601-formatted time period that specifies the interval between
+                            measurement data points. For example, PT30S specifies 30-second
+                            granularity. The supported values for this parameter are the same as
+                            are available in the Granularity drop-down list when you view metrics
+                            in the Ops Manager interface.
+        :param period: How far back in the past to retrieve measurements, as specified by an
+                       ISO-8601 period string. For example, setting PT24H specifies 24 hours.
+                       An ISO-8601-formatted time period that specifies how far back in the
+                       past to query. For example, to request the last 36 hours,
+                       specify: period=P1DT12H.
+        :return: The status of the call.
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/measurements/
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(host_id, 'host_id')
+        self.__test_parameter_for_string(partition_name, 'partition_name')
+        self.__test_parameter_for_string(granularity, 'granularity')
+        self.__test_parameter_for_string(period, 'period')
+
+        url = urljoin(self.url, 'groups/{0}/hosts/{1}/disks/{2}/measurements\
+                      ?granularity={3}&period={4}'.format(group_id, host_id, partition_name,
+                                                          granularity, period))
+
+        if measurements is not None:
+            m_parameter_string = "&".join(measurements)
+            url = "{0}&{1}".format(url, m_parameter_string)
+
+        result = self.__get(url)
+
+        return result
+
+    # Last modified 2017-07-14
+    def get_disk_partition_measurements_by_time_range(self, group_id, host_id, partition_name,
+                                                      granularity, start, end, measurements=None):
+        """
+        Disk measurements provide data on IOPS, disk use, and disk latency on the servers running
+        MongoDB, as collected by the Automation Agent. You must run Ops Manager Automation to
+        retrieve disk measurements. [1]
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param host_id: ID of the host for the MongoDB process.
+        :param partition_name: The name of the partition on the host.
+        :param granularity: An ISO-8601-formatted time period that specifies the interval between
+                            measurement data points. For example, PT30S specifies 30-second
+                            granularity. The supported values for this parameter are the same as
+                            are available in the Granularity drop-down list when you view metrics
+                            in the Ops Manager interface.
+        :param period: How far back in the past to retrieve measurements, as specified by an
+                       ISO-8601 period string. For example, setting PT24H specifies 24 hours.
+                       An ISO-8601-formatted time period that specifies how far back in the
+                       past to query. For example, to request the last 36 hours,
+                       specify: period=P1DT12H.
+        :return: The status of the call.
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/measurements/
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(host_id, 'host_id')
+        self.__test_parameter_for_string(partition_name, 'partition_name')
+        self.__test_parameter_for_string(granularity, 'granularity')
+        self.__test_parameter_for_string(start, 'start')
+        self.__test_parameter_for_string(end, 'end')
+
+        url = urljoin(self.url, 'groups/{0}/hosts/{1}/disks/{2}/measurements\
+                      ?granularity={3}&start={4}&end={5}'.format(group_id, host_id,
+                                                                 partition_name, granularity,
+                                                                 start, end))
+
+        if measurements is not None:
+            m_parameter_string = "&".join(measurements)
+            url = "{0}&{1}".format(url, m_parameter_string)
+
+        result = self.__get(url)
+
+        return result
+
+    # Last modified 2017-07-14
+    def get_database_measurements_by_period(self, group_id, host_id, database_name,
+                                            granularity, period, measurements=None):
+        """
+        Database measurements provide statistics on database performance and storage.
+        The Monitoring Agent collects database measurements through the dbStats command. [1]
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param host_id: ID of the host for the MongoDB process.
+        :param database_name: The name of the database on the host.
+        :param granularity: An ISO-8601-formatted time period that specifies the interval between
+                            measurement data points. For example, PT30S specifies 30-second
+                            granularity. The supported values for this parameter are the same as
+                            are available in the Granularity drop-down list when you view metrics
+                            in the Ops Manager interface.
+        :param period: How far back in the past to retrieve measurements, as specified by an
+                       ISO-8601 period string. For example, setting PT24H specifies 24 hours.
+                       An ISO-8601-formatted time period that specifies how far back in the
+                       past to query. For example, to request the last 36 hours,
+                       specify: period=P1DT12H.
+        :return: The status of the call.
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/measurements/
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(host_id, 'host_id')
+        self.__test_parameter_for_string(database_name, 'database_name')
+        self.__test_parameter_for_string(granularity, 'granularity')
+        self.__test_parameter_for_string(period, 'period')
+
+        url = urljoin(self.url, 'groups/{0}/hosts/{1}/database/{2}/measurements\
+                      ?granularity={3}&period={4}'.format(group_id, host_id, database_name,
+                                                          granularity, period))
+
+        if measurements is not None:
+            m_parameter_string = "&".join(measurements)
+            url = "{0}&{1}".format(url, m_parameter_string)
+
+        result = self.__get(url)
+
+        return result
+
+    # Last modified 2017-07-14
+    def get_database_measurements_by_time_range(self, group_id, host_id, database_name,
+                                                granularity, start, end, measurements=None):
+        """
+        Database measurements provide statistics on database performance and storage.
+        The Monitoring Agent collects database measurements through the dbStats command. [1]
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param host_id: ID of the host for the MongoDB process.
+        :param database_name: The name of the database on the host.
+        :param granularity: An ISO-8601-formatted time period that specifies the interval between
+                            measurement data points. For example, PT30S specifies 30-second
+                            granularity. The supported values for this parameter are the same as
+                            are available in the Granularity drop-down list when you view metrics
+                            in the Ops Manager interface.
+        :param period: How far back in the past to retrieve measurements, as specified by an
+                       ISO-8601 period string. For example, setting PT24H specifies 24 hours.
+                       An ISO-8601-formatted time period that specifies how far back in the
+                       past to query. For example, to request the last 36 hours,
+                       specify: period=P1DT12H.
+        :return: The status of the call.
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/measurements/
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(host_id, 'host_id')
+        self.__test_parameter_for_string(database_name, 'database_name')
+        self.__test_parameter_for_string(granularity, 'granularity')
+        self.__test_parameter_for_string(start, 'start')
+        self.__test_parameter_for_string(end, 'end')
+
+        url = urljoin(self.url, 'groups/{0}/hosts/{1}/database/{2}/measurements\
+                      ?granularity={3}&start={4}&end={5}'.format(group_id, host_id,
+                                                                 database_name, granularity,
+                                                                 start, end))
+
+        if measurements is not None:
+            m_parameter_string = "&".join(measurements)
+            url = "{0}&{1}".format(url, m_parameter_string)
+
+        result = self.__get(url)
+
+        return result
+
+    # Last modified 2017-07-14
+    def get_list_of_measurements(self, group_id, host_id):
+        """
+        This returns a document with only one data point for each measurement.
+        Ops Manager filters out any measurement types that are not applicable.
+        For example, if you are querying a replica set's primary, Ops Manager will
+        not return measurements specific to replica set secondaries, such as replication lag. [1]
+        :param group_id: ID of the group that owns this MongoDB process.
+        :param host_id: ID of the host for the MongoDB process.
+        :return: The status of the call.
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/measurements/
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(host_id, 'host_id')
+
+        url = urljoin(self.url, 'groups/{0}/hosts/{1}/measurements?granularity=PT5M&period=PT5M'
+                      .format(group_id, host_id))
+
+        result = self.get_host_measurements_by_period(group_id, host_id, 'PT5M', 'PT5M')
+
+        return result
+    # endregion
+
+    # region Alerts
+    # Last modified 2017-07-14
+    def get_alerts(self, group_id, status=None, page_num=1, items_per_page=100):
+        """
+        Get all alerts for a group. [1]
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/alerts/#get-all-alerts
+        :param group_id: The id of the group in Cloud Manager / Ops Manager.
+        :param status: The status of alerts to get. Omit or set to None to get all alerts
+                       regardless of status.
+        :param items_per_page: The maximum number of items to include in each response.
+        :param page_num: The page number to retrieve.
+        :return: The list of alerts
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_int(items_per_page, 'items_per_page')
+        self.__test_parameter_for_int(page_num, 'page_num')
+
+        url = urljoin(self.url, 'groups/{0}/alerts?pageNum={1}&items_per_page={2}'
+                      .format(group_id, page_num, items_per_page))
+
+        if status is not None:
+            self.__test_parameter_for_string(status, 'status')
+            url = "{0}&{1}".format(url, status)
+
+        result = self.__get(url)
+
+        return result
+
+    # Last modified 2017-07-14
+    def get_alert(self, group_id, alert_id, page_num=1, items_per_page=100):
+        """
+        Get a specific alert [1]
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/alerts/#get-an-alert
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
+                         use the groupName and call get_group_by_name to get the Id
+        :param alert_id: The id of the alert.
+        :param items_per_page: The maximum number of items to include in each response.
+        :param page_num: The page number to retrieve.
+        :return: The alert object
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(alert_id, 'alert_id')
+        self.__test_parameter_for_int(items_per_page, 'items_per_page')
+        self.__test_parameter_for_int(page_num, 'page_num')
+
+        url = urljoin(self.url, 'groups/{0}/alerts/{1}?pageNum={2}&items_per_page={3}'
+                      .format(group_id, alert_id, page_num, items_per_page))
+
+        result = self.__get(url)
+
+        return result
+
+    # Last modified 2017-07-14
+    def acknowledge_alert(self, group_id, alert_id, acknowledge_until,
+                          acknowledgement_comment=None):
+        """
+        Acknowledge an alert until the specified time [1]
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
+                         use the groupName and call get_group_by_name to get the Id
+        :param alert_id: The id of the alert.
+        :param acknowledge_until: The time until which the alert will be acknowledged. Must
+                                  be ISO8601 timestamp or Date object
+        :param acknowledgement_comment: If you add a comment, Cloud / Ops Manager displays the
+                                        comment next to the message that the alert has been
+                                        acknowledged.
+        :return: The alert object.
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/alerts-acknowledge-alert/
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+
+        if acknowledgement_comment is not None:
+            self.__test_parameter_for_string(acknowledgement_comment, 'acknowledgement_comment')
+
+        url = urljoin(self.url, 'groups/{0}/alerts/{1}'.format(group_id, alert_id))
+
+        if isinstance(acknowledge_until, datetime):
+            ack_doc = {
+                "acknowledged_until": acknowledge_until.isoformat(),
+                "acknowledgementComment": acknowledgement_comment
+                }
+        elif isinstance(acknowledge_until, str) or isinstance(acknowledge_until, unicode):
+            ack_doc = {
+                "acknowledged_until": acknowledge_until,
+                "acknowledgementComment": acknowledgement_comment
+                }
+        else:
+            raise Exception("acknowledge_until is the wrong type. Must be str, unicode, \
+                            or datetime")
+
+        result = self.__update(url, ack_doc)
+
+        return result
+
+    # endregion
+
+    # region Alert Configurations
+    # Last modified 2017-07-14
+    def get_alert_configs(self, group_id, page_num=1, items_per_page=100):
+        """
+        Get all alert configurations for a group. [1]
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
+                         use the groupName and call get_group_by_name to get the Id
+        :param items_per_page: The maximum number of items to include in each response.
+        :param page_num: The page number to retrieve.
+        :return: A list of alert configurations for the group.
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/alert-configurations-get-all-configs/
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_int(page_num, 'page_num')
+        self.__test_parameter_for_int(items_per_page, 'items_per_page')
+
+        url = urljoin(self.url, 'groups/{0}/alertConfigs?pageNum={1}&itemsPerPage={2}'
+                      .format(group_id, page_num, items_per_page))
+        result = self.__get(url)
+
+        return result
+
+    # Last modified 2017-07-14
+    def get_alert_config(self, group_id, alert_id):
+        """
+        Get the configuration that triggered the alert. [1]
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
+                         use the groupName and call get_group_by_name to get the Id
+        :param alert_id: The id of the alert.
+        :return: The alert configuration object
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/alert-configurations-get-config/
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+
+        url = urljoin(self.url, 'groups/{0}/alertConfigs/{1}'.format(group_id, alert_id))
+
+        result = self.__get(url)
+
+        return result
+
+    # Last modified 2017-07-14
+    def get_all_open_alerts_triggered_by_alert_config(self, group_id, alert_config_id,
+                                                      page_num=1, items_per_page=100):
+        """
+        Get all open alerts for an alert configuration. [1]
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
+                         use the groupName and call get_group_by_name to get the Id
+        :param alert_config_id: The id of the alert configuration.
+        :param items_per_page: The maximum number of items to include in each response.
+        :param page_num: The page number to retrieve.
+        :return:
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/alert-configurations-get-open-alerts/
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(alert_config_id, 'alert_config_id')
+        self.__test_parameter_for_int(page_num, 'page_num')
+        self.__test_parameter_for_int(items_per_page, 'items_per_page')
+
+        url = urljoin(self.url, 'groups/{0}/alertConfigs/{1}/alerts?pageNum={2}&itemsPerPage={3}'
+                      .format(group_id, alert_config_id, page_num, items_per_page))
+        result = self.__get(url)
+
+        return result
+
+    def create_alert_config(self, group_id, alert_config):
+        """
+        Create an alert configuration. [1]
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
+                         use the groupName and call get_group_by_name to get the Id
+        :param alert_config:
+        :return:
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/alert-configurations-create-config/
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_dictionary(alert_config, 'alert_config')
+
+        url = urljoin(self.url, 'groups/{0}/alertConfigs'.format(group_id))
+        result = self.__post(url, alert_config)
+
+        return result
+
+    def update_alert_config(self, group_id, alert_config):
+        """
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
+                         use the groupName and call get_group_by_name to get the Id
+        :param alert_config:
+        :return:
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_dictionary(alert_config, 'alert_config')
+
+        url = urljoin(self.url, 'groups/{0}/alertConfigs'.format(group_id))
+        result = self.__update(url, alert_config)
+
+        return result
+
+    def toggle_alert_state(self, group_id, alert_config_id, alert_state="disabled"):
+        """
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
+                         use the groupName and call get_group_by_name to get the Id
+        :param alert_config_id:
+        :param alert_state:
+        :return:
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(alert_config_id, 'alert_config_id')
+        self.__test_parameter_for_string(alert_state, 'alert_state')
+
+        url = urljoin(self.url, 'groups/{0}/alertConfigs/{1}'.format(group_id, alert_config_id))
+
+        if alert_state == "disabled":
+            result = self.__update(url, '{ "enabled": false }')
+        elif alert_state == "enabled":
+            result = self.__update(url, '{ "enabled": true }')
+        else:
+            raise Exception("alert_state parameter value was illegal. Must be enabled or disabled")
+
+        return result
+
+    def delete_alert_config(self, group_id, alert_config_id):
+        """
+
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
+                         use the groupName and call get_group_by_name to get the Id
+        :param alert_config_id:
+        :return:
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(alert_config_id, 'alert_config_id')
+
+        url = urljoin(self.url, 'groups/{0}/alertConfigs/{1}'.format(group_id, alert_config_id))
+        result = self.__delete(url)
+
+        return result
+
     # endregion
 
     # region Agents
@@ -877,190 +1298,6 @@ class PingMeClient(object):
 
         url = urljoin(self.url, 'users')
         result = self.__update(url, user)
-
-        return result
-
-    # endregion
-
-    # region Alerts
-    def get_alerts(self, group_id, status=None):
-        """
-        Get all of the alerts regardless of status, for the group_id [1]
-        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/alerts/#get-all-alerts
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
-                         use the groupName and call get_group_by_name to get the Id
-        :param status: The status of alerts to get. Omit or set to None to get all alerts
-                       regardless of status.
-        :return: The list of alerts
-        """
-        self.__test_parameter_for_string(group_id, 'group_id')
-
-        if status is None:
-            url = urljoin(self.url, 'groups/{0}/alerts'.format(group_id))
-        else:
-            url = urljoin(self.url, 'groups/{0}/alerts?status={1}'.format(group_id, status))
-
-        result = self.__get(url)
-
-        return result
-
-    def get_alert(self, group_id, alert_id):
-        """
-        Get a specific alert [1]
-        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/alerts/#get-an-alert
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
-                         use the groupName and call get_group_by_name to get the Id
-        :param alert_id: The id of the alert.
-        :return: The alert object
-        """
-        self.__test_parameter_for_string(group_id, 'group_id')
-
-        url = urljoin(self.url, 'groups/{0}/alerts/{1}'.format(group_id, alert_id))
-
-        result = self.__get(url)
-
-        return result
-
-    def acknowledge_alert(self, group_id, alert_id, acknowledge_until):
-        """
-        Acknowledge an alert until the specified time
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
-                         use the groupName and call get_group_by_name to get the Id
-        :param alert_id: The id of the alert.
-        :param acknowledge_until: The time until which the alert will be acknowledged. Must
-                                  be ISO8601 timestamp or Date object
-        :return: The alert object.
-        """
-        self.__test_parameter_for_string(group_id, 'group_id')
-
-        url = urljoin(self.url, 'groups/{0}/alerts/{1}'.format(group_id, alert_id))
-
-        if isinstance(acknowledge_until, datetime):
-            result = self.__update(url, '{ "acknowledgeUntil": "{0}"'
-                                   .format(acknowledge_until.isoformat()))
-        elif isinstance(acknowledge_until, str) or isinstance(acknowledge_until, unicode):
-            result = self.__update(url, '{ "acknowledgeUntil": "{0}"'.format(acknowledge_until))
-        else:
-            raise Exception("acknowledge_until is the wrong type. Must be str, unicode, " \
-                            "or datetime")
-
-        return result
-
-    # endregion
-
-    # region Alert Configurations
-    def get_alert_configs(self, group_id):
-        """
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
-                         use the groupName and call get_group_by_name to get the Id
-        :return:
-        """
-        self.__test_parameter_for_string(group_id, 'group_id')
-
-        url = urljoin(self.url, 'groups/{0}/alertConfigs'.format(group_id))
-        result = self.__get(url)
-
-        return result
-
-    def get_alert_config(self, group_id, alert_id):
-        """
-        Get the configuration that triggered the alert. [1]
-        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/alerts/#get-alert-configurations-that-triggered-an-alert
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
-                         use the groupName and call get_group_by_name to get the Id
-        :param alert_id: The id of the alert.
-        :return: The alert configuration object
-        """
-        self.__test_parameter_for_string(group_id, 'group_id')
-
-        url = urljoin(self.url, 'groups/{0}/alerts/{1}/alertConfigs'.format(group_id, alert_id))
-
-        result = self.__get(url)
-
-        return result
-
-    def get_all_open_alerts_triggered_by_alert_config(self, group_id, alert_config_id):
-        """
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
-                         use the groupName and call get_group_by_name to get the Id
-        :param alert_config_id:
-        :return:
-        """
-        self.__test_parameter_for_string(group_id, 'group_id')
-        self.__test_parameter_for_string(alert_config_id, 'alert_config_id')
-
-        url = urljoin(self.url, 'groups/{0}/alertConfigs/{1}/alerts'.format(group_id,
-                                                                            alert_config_id))
-        result = self.__get(url)
-
-        return result
-
-    def create_alert_config(self, group_id, alert_config):
-        """
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
-                         use the groupName and call get_group_by_name to get the Id
-        :param alert_config:
-        :return:
-        """
-        self.__test_parameter_for_string(group_id, 'group_id')
-        self.__test_parameter_for_dictionary(alert_config, 'alert_config')
-
-        url = urljoin(self.url, 'groups/{0}/alertConfigs'.format(group_id))
-        result = self.__post(url, alert_config)
-
-        return result
-
-    def update_alert_config(self, group_id, alert_config):
-        """
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
-                         use the groupName and call get_group_by_name to get the Id
-        :param alert_config:
-        :return:
-        """
-        self.__test_parameter_for_string(group_id, 'group_id')
-        self.__test_parameter_for_dictionary(alert_config, 'alert_config')
-
-        url = urljoin(self.url, 'groups/{0}/alertConfigs'.format(group_id))
-        result = self.__update(url, alert_config)
-
-        return result
-
-    def toggle_alert_state(self, group_id, alert_config_id, alert_state="disabled"):
-        """
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
-                         use the groupName and call get_group_by_name to get the Id
-        :param alert_config_id:
-        :param alert_state:
-        :return:
-        """
-        self.__test_parameter_for_string(group_id, 'group_id')
-        self.__test_parameter_for_string(alert_config_id, 'alert_config_id')
-        self.__test_parameter_for_string(alert_state, 'alert_state')
-
-        url = urljoin(self.url, 'groups/{0}/alertConfigs/{1}'.format(group_id, alert_config_id))
-
-        if alert_state == "disabled":
-            result = self.__update(url, '{ "enabled": false }')
-        elif alert_state == "enabled":
-            result = self.__update(url, '{ "enabled": true }')
-        else:
-            raise Exception("alert_state parameter value was illegal. Must be enabled or disabled")
-
-        return result
-
-    def delete_alert_config(self, group_id, alert_config_id):
-        """
-
-        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
-                         use the groupName and call get_group_by_name to get the Id
-        :param alert_config_id:
-        :return:
-        """
-        self.__test_parameter_for_string(group_id, 'group_id')
-        self.__test_parameter_for_string(alert_config_id, 'alert_config_id')
-
-        url = urljoin(self.url, 'groups/{0}/alertConfigs/{1}'.format(group_id, alert_config_id))
-        result = self.__delete(url)
 
         return result
 
