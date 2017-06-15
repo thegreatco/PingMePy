@@ -129,8 +129,8 @@ class PingMeClient(object):
 
         return result
 
-    @deprecated("get_host_by_hostname_and_port")
     # Last modified 2017-07-14
+    @deprecated
     def get_host_by_name(self, group_id, host_name):
         """
         Get a host by host_name:port [1]
@@ -233,7 +233,7 @@ class PingMeClient(object):
         # I should probably have some validation of the dict here...
 
         url = urljoin(self.url, 'groups/{0}/hosts/{1}'.format(group_id, host_id))
-        result = self.__update(url, host)
+        result = self.__patch(url, host)
 
         return result
 
@@ -427,7 +427,7 @@ class PingMeClient(object):
 
         url = urljoin(self.url, 'groups/{0}/clusters/{1}'.format(group_id, cluster_id))
         data = {"clusterName":cluster_name}
-        result = self.__update(url, data)
+        result = self.__patch(url, data)
 
         return result
     # endregion
@@ -525,7 +525,7 @@ class PingMeClient(object):
 
         return result
 
-    # Last modified 2017-07-14
+    # Last modified 2017-07-15
     def get_disk_partition_measurements_by_period(self, group_id, host_id, partition_name,
                                                   granularity, period, measurements=None):
         """
@@ -566,7 +566,7 @@ class PingMeClient(object):
 
         return result
 
-    # Last modified 2017-07-14
+    # Last modified 2017-07-15
     def get_disk_partition_measurements_by_time_range(self, group_id, host_id, partition_name,
                                                       granularity, start, end, measurements=None):
         """
@@ -609,7 +609,7 @@ class PingMeClient(object):
 
         return result
 
-    # Last modified 2017-07-14
+    # Last modified 2017-07-15
     def get_database_measurements_by_period(self, group_id, host_id, database_name,
                                             granularity, period, measurements=None):
         """
@@ -649,7 +649,7 @@ class PingMeClient(object):
 
         return result
 
-    # Last modified 2017-07-14
+    # Last modified 2017-07-15
     def get_database_measurements_by_time_range(self, group_id, host_id, database_name,
                                                 granularity, start, end, measurements=None):
         """
@@ -691,7 +691,7 @@ class PingMeClient(object):
 
         return result
 
-    # Last modified 2017-07-14
+    # Last modified 2017-07-15
     def get_list_of_measurements(self, group_id, host_id):
         """
         This returns a document with only one data point for each measurement.
@@ -715,7 +715,7 @@ class PingMeClient(object):
     # endregion
 
     # region Alerts
-    # Last modified 2017-07-14
+    # Last modified 2017-07-15
     def get_alerts(self, group_id, status=None, page_num=1, items_per_page=100):
         """
         Get all alerts for a group. [1]
@@ -742,7 +742,7 @@ class PingMeClient(object):
 
         return result
 
-    # Last modified 2017-07-14
+    # Last modified 2017-07-15
     def get_alert(self, group_id, alert_id, page_num=1, items_per_page=100):
         """
         Get a specific alert [1]
@@ -766,7 +766,7 @@ class PingMeClient(object):
 
         return result
 
-    # Last modified 2017-07-14
+    # Last modified 2017-07-15
     def acknowledge_alert(self, group_id, alert_id, acknowledge_until,
                           acknowledgement_comment=None):
         """
@@ -791,26 +791,26 @@ class PingMeClient(object):
 
         if isinstance(acknowledge_until, datetime):
             ack_doc = {
-                "acknowledged_until": acknowledge_until.isoformat(),
+                "acknowledgedUntil": acknowledge_until.isoformat(),
                 "acknowledgementComment": acknowledgement_comment
                 }
         elif isinstance(acknowledge_until, str) or isinstance(acknowledge_until, unicode):
             ack_doc = {
-                "acknowledged_until": acknowledge_until,
+                "acknowledgedUntil": acknowledge_until,
                 "acknowledgementComment": acknowledgement_comment
                 }
         else:
             raise Exception("acknowledge_until is the wrong type. Must be str, unicode, \
                             or datetime")
 
-        result = self.__update(url, ack_doc)
+        result = self.__patch(url, ack_doc)
 
         return result
 
     # endregion
 
     # region Alert Configurations
-    # Last modified 2017-07-14
+    # Last modified 2017-07-15
     def get_alert_configs(self, group_id, page_num=1, items_per_page=100):
         """
         Get all alert configurations for a group. [1]
@@ -831,7 +831,7 @@ class PingMeClient(object):
 
         return result
 
-    # Last modified 2017-07-14
+    # Last modified 2017-07-15
     def get_alert_config(self, group_id, alert_id):
         """
         Get the configuration that triggered the alert. [1]
@@ -849,7 +849,7 @@ class PingMeClient(object):
 
         return result
 
-    # Last modified 2017-07-14
+    # Last modified 2017-07-15
     def get_all_open_alerts_triggered_by_alert_config(self, group_id, alert_config_id,
                                                       page_num=1, items_per_page=100):
         """
@@ -873,14 +873,16 @@ class PingMeClient(object):
 
         return result
 
+    # Last modified 2017-07-15
     def create_alert_config(self, group_id, alert_config):
         """
         Create an alert configuration. [1]
         :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
                          use the groupName and call get_group_by_name to get the Id
-        :param alert_config:
+        :param alert_config: The alert configuration object. See documentation for more detail. [2]
         :return:
         [1]: https://docs.opsmanager.mongodb.com/current/reference/api/alert-configurations-create-config/
+        [2]: https://docs.opsmanager.mongodb.com/current/reference/api/alert-configurations-create-config/#request-body-parameters
         """
         self.__test_parameter_for_string(group_id, 'group_id')
         self.__test_parameter_for_dictionary(alert_config, 'alert_config')
@@ -890,51 +892,70 @@ class PingMeClient(object):
 
         return result
 
+    # Last modified 2017-07-15
     def update_alert_config(self, group_id, alert_config):
         """
+        Update an alert configuration.
         :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
                          use the groupName and call get_group_by_name to get the Id
         :param alert_config:
         :return:
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/alert-configurations-update-config/
         """
         self.__test_parameter_for_string(group_id, 'group_id')
         self.__test_parameter_for_dictionary(alert_config, 'alert_config')
 
         url = urljoin(self.url, 'groups/{0}/alertConfigs'.format(group_id))
-        result = self.__update(url, alert_config)
+        result = self.__patch(url, alert_config)
 
         return result
 
-    def toggle_alert_state(self, group_id, alert_config_id, alert_state="disabled"):
+    # Last modified 2017-07-15
+    def enable_alert_configuration(self, group_id, alert_config_id):
         """
+        Enable Alert Configuration [1]
         :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
                          use the groupName and call get_group_by_name to get the Id
-        :param alert_config_id:
-        :param alert_state:
+        :param alert_config_id: The id of the Alert
+        :param alert_state: The state to change the alert to, allowed values: enabled/disabled
         :return:
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/alert-configurations-enable-disable-config/
         """
         self.__test_parameter_for_string(group_id, 'group_id')
         self.__test_parameter_for_string(alert_config_id, 'alert_config_id')
-        self.__test_parameter_for_string(alert_state, 'alert_state')
 
         url = urljoin(self.url, 'groups/{0}/alertConfigs/{1}'.format(group_id, alert_config_id))
 
-        if alert_state == "disabled":
-            result = self.__update(url, '{ "enabled": false }')
-        elif alert_state == "enabled":
-            result = self.__update(url, '{ "enabled": true }')
-        else:
-            raise Exception("alert_state parameter value was illegal. Must be enabled or disabled")
-
+        result = self.__patch(url, {"enabled":True})
         return result
 
-    def delete_alert_config(self, group_id, alert_config_id):
+    # Last modified 2017-07-15
+    def disable_alert_configuration(self, group_id, alert_config_id):
         """
-
+        Disable Alert Configuration [1]
         :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
                          use the groupName and call get_group_by_name to get the Id
-        :param alert_config_id:
+        :param alert_config_id: The id of the Alert
         :return:
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/alert-configurations-enable-disable-config/
+        """
+        self.__test_parameter_for_string(group_id, 'group_id')
+        self.__test_parameter_for_string(alert_config_id, 'alert_config_id')
+
+        url = urljoin(self.url, 'groups/{0}/alertConfigs/{1}'.format(group_id, alert_config_id))
+
+        result = self.__patch(url, {"enabled":False})
+        return result
+
+    # Last modified 2017-07-15
+    def delete_alert_config(self, group_id, alert_config_id):
+        """
+	    Delete an alert configuration. [1]
+        :param group_id: The id of the group in Cloud Manager / Ops Manager, if not known,
+                         use the groupName and call get_group_by_name to get the Id
+        :param alert_config_id: The id of the alert configuration to delete.
+        :return:
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/alert-configurations-delete-config/
         """
         self.__test_parameter_for_string(group_id, 'group_id')
         self.__test_parameter_for_string(alert_config_id, 'alert_config_id')
@@ -946,6 +967,160 @@ class PingMeClient(object):
 
     # endregion
 
+    # region Global Alerts
+    # Last modified 2017-07-15
+    def get_global_alerts(self):
+        """
+	    The globalAlerts resource allows you to retrieve and acknowledge alerts that have
+        been triggered by a global alert configuration. You must have the Global Monitoring
+        Admin to use this resource. [1]
+        :return:
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/global-alerts/#get-all-global-alerts
+        """
+
+        url = urljoin(self.url, 'globalAlerts')
+        result = self.__get(url)
+
+        return result
+
+    # Last modified 2017-07-15
+    def get_global_alerts_by_status(self, alert_status):
+        """
+	    The globalAlerts resource allows you to retrieve and acknowledge alerts that have
+        been triggered by a global alert configuration. You must have the Global Monitoring
+        Admin to use this resource. [1]
+        :param alert_status: Only retrieve alerts with this status. This parameter cannot be
+                             CANCELLED. Allowed values are TRACKING, OPEN, and CLOSED.
+        :return:
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/global-alerts/#get-all-global-alerts
+        """
+        self.__test_parameter_for_string(alert_status, 'alert_status')
+
+        if alert_status == 'CANCELLED' or alert_status == u'CANCELLED':
+            raise Exception('The status parameter cannot retrieve CANCELLED global alerts.\
+            See https://docs.opsmanager.mongodb.com/current/reference/api/global-alerts/#get-all-global-alerts')
+
+        url = urljoin(self.url, 'globalAlerts?status={1}'.format(alert_status))
+        result = self.__get(url)
+
+        return result
+
+    # Last modified 2017-07-15
+    def get_global_alert(self, global_alert_id):
+        """
+        The globalAlerts resource allows you to retrieve and acknowledge alerts that have
+        been triggered by a global alert configuration. You must have the Global Monitoring
+        Admin to use this resource. [1]
+        :param global_alert_id: The id of the global_alert to retrieve.
+        :return:
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/global-alerts/#get-a-specific-global-alert
+        """
+        self.__test_parameter_for_string(global_alert_id, 'global_alert_id')
+
+        url = urljoin(self.url, 'globalAlerts/{0}'.format(global_alert_id))
+        result = self.__get(url)
+
+        return result
+
+    # Last modified 2017-07-15
+    def acknowledge_global_alert(self, global_alert_id, acknowledge_until,
+                                 acknowledgement_comment=None):
+        """
+	    Update the alert's acknowledgedUntil field. You can optionally update the
+        acknowledgementComment field with a comment. [1]
+        :param global_alert_id: The Id of the global_alert to acknowledge.
+        :param acknowledgement_comment: The comment to append to the acknowledgement.
+        :return:
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/global-alerts/#get-all-global-alerts
+        """
+        self.__test_parameter_for_string(global_alert_id, 'global_alert_id')
+        if acknowledgement_comment is not None:
+            self.__test_parameter_for_string(acknowledgement_comment, 'acknowledgement_comment')
+
+        url = urljoin(self.url, 'globalAlerts/{0}'.format(global_alert_id))
+
+        if isinstance(acknowledge_until, datetime):
+            ack_doc = {
+                "acknowledgedUntil": acknowledge_until.isoformat(),
+                "acknowledgementComment": acknowledgement_comment
+                }
+        elif isinstance(acknowledge_until, str) or isinstance(acknowledge_until, unicode):
+            ack_doc = {
+                "acknowledgedUntil": acknowledge_until,
+                "acknowledgementComment": acknowledgement_comment
+                }
+        else:
+            raise Exception("acknowledge_until is the wrong type. Must be str, unicode, \
+                            or datetime")
+
+        result = self.__patch(url, ack_doc)
+
+        return result
+    # endregion
+
+    # region Global Alert Configurations
+    # Last modified 2017-07-15
+    def get_global_alert_configs(self):
+        """
+	    The globalAlertConfigs resource retrieves and updates alert configurations for
+        global alerts. [1]
+        :return:
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/global-alert-configurations/
+        """
+
+        url = urljoin(self.url, 'globalAlertConfigs')
+        result = self.__get(url)
+
+        return result
+
+    # Last modified 2017-07-15
+    def get_global_alert_config(self, global_alert_config_id):
+        """
+	    The globalAlertConfigs resource retrieves and updates alert configurations for
+        global alerts. [1]
+        :param global_alert_config_id: The id of the global_alert_configuration.
+        :return:
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/global-alert-configurations/
+        """
+        self.__test_parameter_for_string(global_alert_config_id, 'global_alert_config_id')
+
+        url = urljoin(self.url, 'globalAlertConfigs/{0}'.format(global_alert_config_id))
+        result = self.__get(url)
+
+        return result
+
+    # Last modified 2017-07-15
+    def get_all_open_alerts_triggered_by_global_alert_config(self, global_alert_config_id):
+        """
+	    The globalAlertConfigs resource retrieves and updates alert configurations for
+        global alerts. [1]
+        :param global_alert_config_id: The id of the global_alert_configuration.
+        :return:
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/global-alert-configurations/
+        """
+        self.__test_parameter_for_string(global_alert_config_id, 'global_alert_config_id')
+
+        url = urljoin(self.url, 'globalAlertConfigs/{0}/alerts'.format(global_alert_config_id))
+        result = self.__get(url)
+
+        return result
+
+    # Last modified 2017-07-15
+    def create_global_alert_config(self, global_alert_config):
+        """
+	    The globalAlertConfigs resource retrieves and updates alert configurations for
+        global alerts. [1]
+        :param global_alert_config: The new global_alert_configuration.
+        :return:
+        [1]: https://docs.opsmanager.mongodb.com/current/reference/api/global-alert-configurations/
+        """
+
+        url = urljoin(self.url, 'globalAlertConfigs')
+        result = self.__post(url, global_alert_config)
+
+        return result
+
+    # endregion
     # region Agents
     def get_agents(self, group_id):
         """
@@ -1205,7 +1380,7 @@ class PingMeClient(object):
         # I should probably have some validation of the dict here...
 
         url = urljoin(self.url, 'groups/{0}/users'.format(group_id))
-        result = self.__update(url, users)
+        result = self.__patch(url, users)
 
         return result
 
@@ -1297,7 +1472,7 @@ class PingMeClient(object):
         self.__test_parameter_for_dictionary(user, 'user')
 
         url = urljoin(self.url, 'users')
-        result = self.__update(url, user)
+        result = self.__patch(url, user)
 
         return result
 
@@ -1372,7 +1547,7 @@ class PingMeClient(object):
 
         url = urljoin(self.url, 'groups{0}/maintenanceWindows/{1}'
                       .format(group_id, maintenance_window['id']))
-        result = self.__update(url, maintenance_window)
+        result = self.__patch(url, maintenance_window)
 
         return result
 
@@ -1435,7 +1610,7 @@ class PingMeClient(object):
 
         url = urljoin(self.url, 'groups/{0}/backupConfigs/{1}'
                       .format(group_id, backup_config['cluster_id']))
-        result = self.__update(url, backup_config)
+        result = self.__patch(url, backup_config)
 
         return result
 
@@ -1453,7 +1628,7 @@ class PingMeClient(object):
         self.__test_parameter_contains_val(backup_config, 'statusName', 'statusName')
 
         url = urljoin(self.url, 'groups/{0}/backupConfigs/{1}'.format(group_id, cluster_id))
-        result = self.__update(url, backup_config)
+        result = self.__patch(url, backup_config)
 
         return result
     # endregion
@@ -1492,7 +1667,7 @@ class PingMeClient(object):
 
         url = urljoin(self.url, 'groups/{0}/backupConfigs/{1}/snapshotSchedule'
                       .format(group_id, cluster_id))
-        result = self.__update(url, snapshot_schedule)
+        result = self.__patch(url, snapshot_schedule)
 
         return result
     # endregion
@@ -1818,7 +1993,7 @@ class PingMeClient(object):
         logging.debug('GET Call to {0}'.format(url))
         return requests.get(url, auth=HTTPDigestAuth(self.username, self.api_key)).json()
 
-    def __update(self, url, data):
+    def __patch(self, url, data):
         """
         Make a PATCH call to the specified URL with the provided data payload
         :param url: The URL to which the call is made
@@ -1827,6 +2002,16 @@ class PingMeClient(object):
         """
         logging.debug('PATCH Call to {0} with {1}'.format(url, data))
         return requests.patch(url, auth=HTTPDigestAuth(self.username, self.api_key), json=data).json()
+
+    def __put(self, url, data):
+        """
+        Make a PUT call to the specified URL with the provided data payload
+        :param url: The URL to which the call is made
+        :param data: The payload to send to the URL
+        :return: The result of the PUT
+        """
+        logging.debug('PUT Call to {0} with {1}'.format(url, data))
+        return requests.put(url, auth=HTTPDigestAuth(self.username, self.api_key), json=data).json()
 
     def __delete(self, url):
         """
@@ -1850,14 +2035,35 @@ class PingMeClient(object):
     # endregion
 
     @staticmethod
+    def __is_string(val):
+        return (isinstance(val, unicode) or isinstance(val, str)) or val is None\
+            or val == '' or val.isspace()
+
+    @staticmethod
+    def __is_int(val):
+        return isinstance(val, (int, long))
+
+    @staticmethod
+    def __is_dictionary(val):
+        return isinstance(val, dict)
+
+    @staticmethod
+    def __is_bool(val):
+        return isinstance(val, bool)
+
+    @staticmethod
     def __test_parameter_for_string(param, param_name):
-        if (not isinstance(param, unicode) and not isinstance(param, str)) or param is None\
-            or param == '' or param.isspace():
+        if not PingMeClient.__is_string(param):
             raise Exception(str.format('{0} must be a string and not empty.', param_name))
 
     @staticmethod
     def __test_parameter_for_int(param, param_name):
-        if not isinstance(param, (int, long)):
+        if not PingMeClient.__is_int(param):
+            raise Exception(str.format('{0} must be an integer and not empty.', param_name))
+
+    @staticmethod
+    def __test_parameter_for_boolean(param, param_name):
+        if not PingMeClient.__is_bool(param):
             raise Exception(str.format('{0} must be an integer and not empty.', param_name))
 
     @staticmethod
@@ -1870,6 +2076,7 @@ class PingMeClient(object):
         if contains_val not in param:
             raise Exception(str.format('{0} must be in proper format. Missing {1}'),
                             param_name, contains_val)
+
     @staticmethod
     def __test_parameter_is_value(param, param_name, expected_val):
         if param is not True:
